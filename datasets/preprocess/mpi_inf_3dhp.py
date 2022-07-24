@@ -179,7 +179,7 @@ def test_data(dataset_path, out_path, joints_idx, scaleFactor):
         mat_as_h5 = h5py.File(annot_file, 'r')
         annot2 = np.array(mat_as_h5['annot2'])
         annot3 = np.array(mat_as_h5['univ_annot3'])
-        valid = np.array(mat_as_h5['valid_frame'])
+        valid = np.array(mat_as_h5['valid_frame'])[:10]
         for frame_i, valid_i in enumerate(valid):
             if valid_i == 0:
                 continue
@@ -219,7 +219,7 @@ def test_data(dataset_path, out_path, joints_idx, scaleFactor):
             scales_.append(scale)
             parts_.append(part)
             Ss_.append(S)
-
+    print(len(imgnames_))
     # store the data struct
     if not os.path.isdir(out_path):
         os.makedirs(out_path)

@@ -25,7 +25,20 @@ class BaseDataset(Dataset):
         self.options = options
         self.img_dir = config.DATASET_FOLDERS[dataset]
         self.normalize_img = Normalize(mean=constants.IMG_NORM_MEAN, std=constants.IMG_NORM_STD)
-        self.data = np.load(config.DATASET_FILES[is_train][dataset])
+        self.data1 = np.load(config.DATASET_FILES[is_train][dataset])
+        imgname_ = self.data1['imgname'][:53]
+        center_ = self.data1['center'][:53]
+        scale_ = self.data1['scale'][:53]
+        part_ = self.data1['part'][:53]
+        S_ = self.data1['S'][:53]
+        
+        np.savez("mpi_inf_3dhp_short.npz", imgname=imgname_,
+                           center=center_,
+                           scale=scale_,
+                           part=part_,
+                           S=S_)
+        
+        self.data = np.load("mpi_inf_3dhp_short.npz")
         self.imgname = self.data['imgname']
         
         # Get paths to gt masks, if available
@@ -186,6 +199,7 @@ class BaseDataset(Dataset):
             img = cv2.imread(imgname)[:,:,::-1].copy().astype(np.float32)
         except TypeError:
             print(imgname)
+            print('Hi')
         orig_shape = np.array(img.shape)[:2]
 
         # Get SMPL parameters, if available

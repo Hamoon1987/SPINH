@@ -121,16 +121,42 @@ if __name__ == '__main__':
         pred_rotmat, pred_betas, pred_camera = model(norm_img.to(device))
         pred_output = smpl(betas=pred_betas, body_pose=pred_rotmat[:,1:], global_orient=pred_rotmat[:,0].unsqueeze(1), pose2rot=False)
         pred_vertices = pred_output.vertices
-        
+    
     # Calculate camera parameters for rendering
     camera_translation = torch.stack([pred_camera[:,1], pred_camera[:,2], 2*constants.FOCAL_LENGTH/(constants.IMG_RES * pred_camera[:,0] +1e-9)],dim=-1)
-    camera_translation = camera_translation[0].cpu().numpy()
+    
+   
+    # Get 3d predicted points and convert it to 2d
+    J_regressor = torch.from_numpy(np.load(config.JOINT_REGRESSOR_H36M)).float()
+    pred_keypoints_3d = torch.matmul(J_regressor, pred_vertices)
+    # pred_pelvis = pred_keypoints_3d[:, [0],:].clone()
+    joint_mapper_h36m = constants.H36M_TO_J17
+    pred_keypoints_3d = pred_keypoints_3d[:, joint_mapper_h36m, :]
+    # pred_keypoints_3d = pred_keypoints_3d - pred_pelvis 
+    # pred_keypoints_3d = pred_keypoints_3d + 1 
+    from utils.geometry import perspective_projection
+    # camera_center = torch.zeros(1, 2, device= device)
+    
+    camera_center = torch.tensor([constants.IMG_RES // 2, constants.IMG_RES // 2])
+    pred_keypoints_2d = perspective_projection(pred_keypoints_3d,
+                                                   rotation=torch.eye(3, device=device).unsqueeze(0).expand(1, -1, -1),
+                                                   translation=camera_translation,
+                                                   focal_length=constants.FOCAL_LENGTH,
+                                                   camera_center=camera_center)
+
+    
+    pred_keypoints_2d = pred_keypoints_2d[0].cpu().numpy()
     pred_vertices = pred_vertices[0].cpu().numpy()
+    camera_translation = camera_translation[0].cpu().numpy()
     img = img.permute(1,2,0).cpu().numpy()
 
     
     # Render parametric shape
     img_shape = renderer(pred_vertices, camera_translation, img)
+    img_shape_r = 255* img_shape[:,:,::-1]
+    pred_keypoints_2d = pred_keypoints_2d[:14]
+    for i in range(pred_keypoints_2d.shape[0]):
+        cv2.circle(img_shape_r, (int(pred_keypoints_2d[i][0]), int(pred_keypoints_2d[i][1])), 5, color = (255, 0, 0), thickness=-1)
     
     # Render side views
     aroundy = cv2.Rodrigues(np.array([0, np.radians(90.), 0]))[0]
@@ -144,4 +170,5 @@ if __name__ == '__main__':
 
     # Save reconstructions
     cv2.imwrite(outfile + '_shape.png', 255 * img_shape[:,:,::-1])
+    cv2.imwrite(outfile + '_shape_r.png', img_shape_r)
     cv2.imwrite(outfile + '_shape_side.png', 255 * img_shape_side[:,:,::-1])
