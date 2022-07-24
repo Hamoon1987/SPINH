@@ -143,6 +143,8 @@ logs/
 
 # data files
 data/*
+new_examples/*
+
 # But not the README
 !data/README.md
 
